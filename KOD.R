@@ -252,7 +252,16 @@ setwd("C:/Users/Combo/Desktop/Inflacja")
 
 ZMIDEX<-read.csv("Copy of Inflacja 2016.csv")
 
-ggplot(ZMIDEX,aes(x=ZMIDEX$Odp.w..*100)) + geom_histogram(colour = 'orange',binwidth=1,fill="#FF6600")+xlab("INFLACJA W %")
+ggplot(ZMIDEX,aes(x=ZMIDEX$Odp.w..*100)) +
+  geom_histogram(colour = 'orange',binwidth=1,fill="#FF6600")+
+  xlab("INFLACJA W %")+  
+  theme(
+  panel.background = element_rect(fill = 'white'),
+  axis.title = element_text(colour="#666666",size=15, face="bold"),
+  axis.text = element_text(size=14,colour="black"),
+  panel.grid.major = element_line(colour = "light gray")
+)
+  
 
 
 
@@ -272,11 +281,13 @@ rownames(all_p)<-c("ZMIDEX","NBP","MODEL","AVG(ZMIDEX+MODEL+NBP)","AVG(ZMIDEX+NB
 #########################################################################
 #########################################################################
 #########################################################################
-olo<-0.95
+interval<-sapply(10:1,function(x) 1.96*(sum(((c(rev(model1$varresult$CPIPL_MM$residuals)[1:x],rev(f$fcst$CPIPL_MM[,4])[-c(1:x)]/1.96)))^2)^(1/2)))
+
+main<-stats::filter(c(data_raw_tbl_NA$CPIPL_MM,(f$fcst$CPIPL_MM)[,1]),c(rep(1,11)),method="convolution",sides=1)
 
 plot_base<-data.frame(Y=c(seq(from=as.Date("2005-01-28"),to=as.Date("2016-10-28"),by="month"),rep(seq(from=as.Date("2016-01-28"),to=as.Date("2016-10-28"),by="month"),2)),
                       type=c(rep("old",132),rep("predict",n_ahead),rep("predict lower",n_ahead),rep("predict upper",n_ahead)),
-                      I=(c(stats::filter(c(data_raw_tbl_NA$CPIPL_MM,(f$fcst$CPIPL_MM)[,1]),c(rep(1,11)),method="convolution",sides=1),tail(stats::filter(c(data_raw_tbl_NA$CPIPL_MM,(f$fcst$CPIPL_MM)[,2]*sapply(1:n_ahead,function(i) olo^i)),c(rep(1,11)),method="convolution",sides=1),n_ahead),tail(stats::filter(c(data_raw_tbl_NA$CPIPL_MM,(f$fcst$CPIPL_MM)[,3]*sapply(1:n_ahead,function(i) olo^i)),c(rep(1,11)),method="convolution",sides=1),n_ahead))))
+                      I=(c(main,rev(rev(main)[1:10])-interval,rev(rev(main)[1:10])+interval)))
 
 plot_base_short<-plot_base[-c(1:80),]
 
@@ -339,6 +350,7 @@ IRF_I_USD<-ggplot(IRF_USD,aes(y=IRF,x=Y)) +
   ylab("CPIPL_MM") + xlab("Liczba miesiecy od poczatku 2016") +
   ggtitle("Impuls na zmienna USD_RET1")+ 
   scale_colour_manual(values=c("#FF6600","#FF9966","#FF9966"))+
+  geom_hline(yintercept=c(0), linetype="solid",size=1.5,colour="#999999")+
   theme(
     axis.title = element_text(colour="#666666",size=16, face="bold"),
     plot.title = element_text(colour="#666666",size=20, face="bold"),
@@ -356,6 +368,7 @@ IRF_I_BEZROB<-ggplot(IRF_BEZROB,aes(y=IRF,x=Y)) +
   ylab("CPIPL_MM") + xlab("Liczba miesiecy od poczatku 2016") +
   ggtitle("Impuls na zmienna BEZROB_RET1")+ 
   scale_colour_manual(values=c("#FF6600","#FF9966","#FF9966"))+
+  geom_hline(yintercept=c(0), linetype="solid",size=1.5,colour="#999999")+
   theme(
     axis.title = element_text(colour="#666666",size=16, face="bold"),
     plot.title = element_text(colour="#666666",size=20, face="bold"),
@@ -363,3 +376,21 @@ IRF_I_BEZROB<-ggplot(IRF_BEZROB,aes(y=IRF,x=Y)) +
     axis.text = element_text(size=15),
     panel.grid.major = element_line(colour = "light gray")
     )
+
+impulse_BRENT<-irf(model1,impulse="BRENT_RET1",response="CPIPL_MM",cumulative = FALSE,n.ahead=12)
+
+IRF_BRENT<-data.frame(IRF=c(impulse_BRENT$irf$BRENT_RET1,impulse_BRENT$Lower$BRENT_RET1,impulse_BRENT$Upper$BRENT_RET1),type=c(rep("impulse",13),rep("lower",13),rep("upper",13)),Y=rep(seq(1:13),3))
+
+IRF_I_BRENT<-ggplot(IRF_BRENT,aes(y=IRF,x=Y)) + 
+  geom_line(aes(colour=type),size = 1.5)  + 
+  ylab("CPIPL_MM") + xlab("Liczba miesiecy od poczatku 2016") +
+  ggtitle("Impuls na zmienna BRENT_RET1")+ 
+  scale_colour_manual(values=c("#FF6600","#FF9966","#FF9966"))+
+  geom_hline(yintercept=c(0), linetype="solid",size=1.5,colour="#999999")+
+  theme(
+    axis.title = element_text(colour="#666666",size=16, face="bold"),
+    plot.title = element_text(colour="#666666",size=20, face="bold"),
+    panel.background = element_rect(fill = 'white'),
+    axis.text = element_text(size=15),
+    panel.grid.major = element_line(colour = "light gray")
+  )
